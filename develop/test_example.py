@@ -14,7 +14,7 @@ EXP_DIR = "/data1/mafukun/export"
 DEV_DIR = "/home/mafukun/GLUE/jiant/develop"
 task_names = ["mnli_linearized_amr"]
 hf_pretrained_model_name = "roberta-base"
-run_name = "mnli_linearized_amr"
+run_name = "mnli_linearized_amr_all_addition_vocab"
 
 # Prepare for task: download data, export model, tokenize and cache
 # downloader.download_data(task_names, f"{EXP_DIR}/tasks")
@@ -22,7 +22,7 @@ run_name = "mnli_linearized_amr"
 export_model.export_model(
     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
     output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}-amr-addition",
-    additional_token_path=f"{DEV_DIR}/additions-limit-2.txt"
+    additional_token_path=f"{DEV_DIR}/additions.txt"
 )
 
 for task_name in task_names:
