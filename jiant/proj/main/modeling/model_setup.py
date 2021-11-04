@@ -11,7 +11,9 @@ import warnings
 import jiant.proj.main.components.container_setup as container_setup
 import jiant.proj.main.modeling.primary as primary
 import jiant.utils.python.strings as strings
+import jiant.utils.python.io as py_io
 
+from jiant.proj.main.export_model import add_special_token
 from jiant.proj.main.modeling.heads import JiantHeadFactory
 from jiant.proj.main.modeling.taskmodels import JiantTaskModelFactory, Taskmodel, MLMModel
 
@@ -55,6 +57,9 @@ def setup_jiant_model(
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         hf_pretrained_model_name_or_path, use_fast=False
     )
+    if py_io.read_json(model_config_path).get("additional_token_path"):
+        print("Add special token!")
+        add_special_token(hf_model, tokenizer, py_io.read_json(model_config_path)["additional_token_path"])
     encoder = primary.JiantTransformersModelFactory()(hf_model)
     taskmodels_dict = {
         taskmodel_name: create_taskmodel(
