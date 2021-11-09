@@ -12,30 +12,29 @@ import os
 
 EXP_DIR = "/data1/mafukun/export"
 DEV_DIR = "/home/mafukun/GLUE/jiant/develop"
-task_names = ["mnli_linearized_amr"]
+task_names = ["mnli"]
 hf_pretrained_model_name = "roberta-base"
-run_name = "mnli_linearized_amr_all_addition_vocab2" # ["mnli_linearized_amr", "mnli_linearized_amr_limit_addition_vocab"]
+run_name = "mnli_base"
 
 # Prepare for task: download data, export model, tokenize and cache
 # downloader.download_data(task_names, f"{EXP_DIR}/tasks")
 
-# export_model.export_model(
-#     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
-#     output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}-amr-all-addition",
-#     additional_token_path=f"{DEV_DIR}/additions.txt"
-# )
+export_model.export_model(
+    hf_pretrained_model_name_or_path=hf_pretrained_model_name,
+    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}",
+)
 
-# for task_name in task_names:
-#     tokenize_and_cache.main(tokenize_and_cache.RunConfiguration(
-#         task_config_path=f"{EXP_DIR}/tasks/configs/{task_name}_config.json",
-#         hf_pretrained_model_name_or_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}-amr-all-addition/tokenizer",
-#         output_dir=f"{EXP_DIR}/cache/{task_name}",
-#         phases=["train", "val"],
-#         max_seq_length=512,
-#     ))
-#     row = caching.ChunkedFilesDataCache(f"{EXP_DIR}/cache/{task_name}/train").load_chunk(0)[0]["data_row"]
-#     print(row.input_ids)
-#     print(row.tokens)
+for task_name in task_names:
+    tokenize_and_cache.main(tokenize_and_cache.RunConfiguration(
+        task_config_path=f"{EXP_DIR}/tasks/configs/{task_name}_config.json",
+        hf_pretrained_model_name_or_path=hf_pretrained_model_name,
+        output_dir=f"{EXP_DIR}/cache/{task_name}",
+        phases=["train", "val"],
+        max_seq_length=512,
+    ))
+    row = caching.ChunkedFilesDataCache(f"{EXP_DIR}/cache/{task_name}/train").load_chunk(0)[0]["data_row"]
+    print(row.input_ids)
+    print(row.tokens)
 
 jiant_run_config = configurator.SimpleAPIMultiTaskConfigurator(
     task_config_base_path=f"{EXP_DIR}/tasks/configs",

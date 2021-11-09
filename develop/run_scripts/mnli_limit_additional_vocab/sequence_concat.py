@@ -11,9 +11,9 @@ import jiant.utils.display as display
 import os
 import uuid
 
-EXP_DIR = "/data1/mafukun/export/resource"
-DEV_DIR = "/home/mafukun/GLUE/jiant/develop"
-addition = "limit_vocab"
+EXP_DIR = "/data1/mafukun/export"
+DEV_DIR = "/home/mafukun/GLUE/jiant/develop/resource"
+addition = "amr_limit_vocab"
 task_names = ["mnli_linearized_amr"]
 hf_pretrained_model_name = "roberta-base"
 run_name = f"mnli_linearized_amr_{addition}"
@@ -24,14 +24,14 @@ run_id = uuid.uuid4().hex
 
 export_model.export_model(
     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
-    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}",
+    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
     additional_token_path=f"{DEV_DIR}/additions-limit-2.txt"
 )
 
 for task_name in task_names:
     tokenize_and_cache.main(tokenize_and_cache.RunConfiguration(
-        task_config_path=f"{EXP_DIR}/tasks/configs/{task_name}_{addition}_config.json",
-        hf_pretrained_model_name_or_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}/tokenizer",
+        task_config_path=f"{EXP_DIR}/tasks/configs/{task_name}_config.json",
+        hf_pretrained_model_name_or_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}/tokenizer",
         output_dir=f"{EXP_DIR}/cache/{task_name}_{addition}",
         phases=["train", "val"],
         max_seq_length=512,

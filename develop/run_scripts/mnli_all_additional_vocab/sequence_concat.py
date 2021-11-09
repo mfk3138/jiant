@@ -11,11 +11,12 @@ import jiant.utils.display as display
 import os
 import uuid
 
-EXP_DIR = "/data1/mafukun/export/resource"
-DEV_DIR = "/home/mafukun/GLUE/jiant/develop"
+EXP_DIR = "/data1/mafukun/export"
+DEV_DIR = "/home/mafukun/GLUE/jiant/develop/resource"
+addition = "amr_all_vocab"
 task_names = ["mnli_linearized_amr"]
 hf_pretrained_model_name = "roberta-base"
-run_name = "mnli_linearized_amr"
+run_name = f"mnli_linearized_amr_{addition}"
 run_id = uuid.uuid4().hex
 
 # Prepare for task: download data, export model, tokenize and cache
@@ -23,25 +24,26 @@ run_id = uuid.uuid4().hex
 
 export_model.export_model(
     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
-    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}",
+    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
     additional_token_path=f"{DEV_DIR}/additions.txt"
 )
 
 for task_name in task_names:
     tokenize_and_cache.main(tokenize_and_cache.RunConfiguration(
         task_config_path=f"{EXP_DIR}/tasks/configs/{task_name}_config.json",
-        hf_pretrained_model_name_or_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}/tokenizer",
-        output_dir=f"{EXP_DIR}/cache/{task_name}",
+        hf_pretrained_model_name_or_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}/tokenizer",
+        output_dir=f"{EXP_DIR}/cache/{task_name}_{addition}",
         phases=["train", "val"],
         max_seq_length=512,
     ))
-    row = caching.ChunkedFilesDataCache(f"{EXP_DIR}/cache/{task_name}/train").load_chunk(0)[0]["data_row"]
+    row = caching.ChunkedFilesDataCache(f"{EXP_DIR}/cache/{task_name}_{addition}/train").load_chunk(0)[0]["data_row"]
     print(row.input_ids)
     print(row.tokens)
 
 jiant_run_config = configurator.SimpleAPIMultiTaskConfigurator(
-    task_config_base_path=f"{EXP_DIR}/tasks/configs",
-    task_cache_base_path=f"{EXP_DIR}/cache",
+    task_config_path_dict={task_name: f"{EXP_DIR}/tasks/configs/{task_name}_{addition}_config.json"
+                           for task_name in task_names},
+    task_cache_path_dict={task_name: f"{EXP_DIR}/cache/{task_name}_{addition}" for task_name in task_names},
     train_task_name_list=task_names,
     val_task_name_list=task_names,
     train_batch_size=16,
