@@ -50,7 +50,7 @@ jiant_run_config = configurator.SimpleAPIMultiTaskConfigurator(
     epochs=10,
     num_gpus=1,
 ).create_config()
-os.makedirs(f"{EXP_DIR}/run_configs/", exist_ok=True)
+os.makedirs(f"{EXP_DIR}/run_configs/{run_name}", exist_ok=True)
 py_io.write_json(jiant_run_config, f"{EXP_DIR}/run_configs/{run_name}/{run_id}_run_config.json")
 display.show_json(jiant_run_config)
 
