@@ -29,34 +29,19 @@ class Example(BaseExample):
     hypothesis_relation_labels: List[str]
     label: str
 
-    @staticmethod
-    def amr_elements_tokenize(tokenizer, amr_elements):
-        element_sub_token_lists = [tokenizer.tokenize(element) for element in amr_elements]
-        element_lengths = [len(sub_tokens) for sub_tokens in element_sub_token_lists]
-        element_sub_tokens = sum(element_sub_token_lists, [])
-        total_length = 0
-        element_end_indices = [total_length + length for length in element_lengths]
-        return element_sub_tokens, element_end_indices
-
     def tokenize(self, tokenizer):
-        premise_concept_sub_tokens, premise_concept_end_indices = self.amr_elements_tokenize(tokenizer, self.premise_concepts)
-        premise_relation_label_sub_tokens, premise_relation_label_end_indices = self.amr_elements_tokenize(tokenizer, self.premise_relation_labels)
-        hypothesis_concept_sub_tokens, hypothesis_concept_end_indices = self.amr_elements_tokenize(tokenizer, self.hypothesis_concepts)
-        hypothesis_relation_label_sub_tokens, hypothesis_relation_label_end_indices = self.amr_elements_tokenize(tokenizer, self.hypothesis_relation_labels)
         return TokenizedExample(
             guid=self.guid,
             premise_snt=tokenizer.tokenize(self.premise_snt),
-            premise_concept_sub_tokens=premise_concept_sub_tokens,
-            premise_concept_end_indices=premise_concept_end_indices,
+            premise_concepts=[tokenizer.tokenize(concept) for concept in self.premise_concepts],
             premise_relation_ids=self.premise_relation_ids,
-            premise_relation_label_sub_tokens=premise_relation_label_sub_tokens,
-            premise_relation_label_end_indices=premise_relation_label_end_indices,
+            premise_relation_labels=[tokenizer.tokenize(relation_label)
+                                     for relation_label in self.premise_relation_labels],
             hypothesis_snt=tokenizer.tokenize(self.hypothesis_snt),
-            hypothesis_concept_sub_tokens=hypothesis_concept_sub_tokens,
-            hypothesis_concept_end_indices=hypothesis_concept_end_indices,
+            hypothesis_concepts=[tokenizer.tokenize(concept) for concept in self.hypothesis_concepts],
             hypothesis_relation_ids=self.hypothesis_relation_ids,
-            hypothesis_relation_label_sub_tokens=hypothesis_relation_label_sub_tokens,
-            hypothesis_relation_label_end_indices=hypothesis_relation_label_end_indices,
+            hypothesis_relation_labels=[tokenizer.tokenize(relation_label)
+                                        for relation_label in self.hypothesis_relation_labels],
             label_id=MnliAMRTask.LABEL_TO_ID[self.label],
         )
 
@@ -64,35 +49,27 @@ class Example(BaseExample):
 @dataclass
 class TokenizedExample(BaseTokenizedExample):
     guid: str
-    premise_snt: List
-    premise_concept_sub_tokens: List
-    premise_concept_end_indices: List
+    premise_snt: List[str]
+    premise_concepts: List[List[str]]
     premise_relation_ids: List[Tuple[int, int]]
-    premise_relation_label_sub_tokens: List
-    premise_relation_label_end_indices: List
-    hypothesis_snt: List
-    hypothesis_concept_sub_tokens: List
-    hypothesis_concept_end_indices: List
+    premise_relation_labels: List[List[str]]
+    hypothesis_snt: List[str]
+    hypothesis_concepts: List[List[str]]
     hypothesis_relation_ids: List[Tuple[int, int]]
-    hypothesis_relation_label_sub_tokens: List
-    hypothesis_relation_label_end_indices: List
+    hypothesis_relation_labels: List[List[str]]
     label_id: int
 
     def featurize(self, tokenizer, feat_spec):
         return double_sentence_with_amr_featurize(
             guid=self.guid,
             input_tokens_a=self.premise_snt,
-            input_amr_concept_sub_tokens_a=self.premise_concept_sub_tokens,
-            input_amr_concept_end_indices_a=self.premise_concept_end_indices,
+            input_amr_concepts_a=self.premise_concepts,
             input_amr_relation_ids_a=self.premise_relation_ids,
-            input_amr_relation_label_sub_tokens_a=self.premise_relation_label_sub_tokens,
-            input_amr_relation_label_end_indices_a=self.premise_relation_label_end_indices,
+            input_amr_relation_labels_a=self.premise_relation_labels,
             input_tokens_b=self.hypothesis_snt,
-            input_amr_concept_sub_tokens_b=self.hypothesis_concept_sub_tokens,
-            input_amr_concept_end_indices_b=self.hypothesis_concept_end_indices,
+            input_amr_concepts_b=self.hypothesis_concepts,
             input_amr_relation_ids_b=self.hypothesis_relation_ids,
-            input_amr_relation_label_sub_tokens_b=self.hypothesis_relation_label_sub_tokens,
-            input_amr_relation_label_end_indices_b=self.hypothesis_relation_label_end_indices,
+            input_amr_relation_labels_b=self.hypothesis_relation_labels,
             label_id=self.label_id,
             tokenizer=tokenizer,
             feat_spec=feat_spec,
@@ -106,13 +83,11 @@ class DataRow(BaseDataRow):
     input_ids: np.ndarray
     input_mask: np.ndarray
     segment_ids: np.ndarray
-    input_concept_sub_token_ids: np.ndarray
-    input_concept_end_indices: np.ndarray
-    input_concept_end_indices_mask: np.ndarray
+    input_concept_ids: np.ndarray
+    input_concept_mask: np.ndarray
     input_relation_ids: np.ndarray
-    input_relation_label_sub_token_ids: np.ndarray
-    input_relation_label_end_indices: np.ndarray
-    input_relation_label_end_indices_mask: np.ndarray
+    input_relation_label_ids: np.ndarray
+    input_relation_label_mask: np.ndarray
     label_id: int
     tokens: list
 
@@ -122,13 +97,11 @@ class Batch(BatchMixin):
     input_ids: torch.LongTensor
     input_mask: torch.LongTensor
     segment_ids: torch.LongTensor
-    input_concept_sub_token_ids: torch.LongTensor
-    input_concept_end_indices: torch.LongTensor
-    input_concept_end_indices_mask: torch.LongTensor
+    input_concept_ids: torch.LongTensor
+    input_concept_mask: torch.LongTensor
     input_relation_ids: torch.LongTensor
-    input_relation_label_sub_token_ids: torch.LongTensor
-    input_relation_label_end_indices: torch.LongTensor
-    input_relation_label_end_indices_mask: torch.LongTensor
+    input_relation_label_ids: torch.LongTensor
+    input_relation_label_mask: torch.LongTensor
     label_id: torch.LongTensor
     tokens: list
 

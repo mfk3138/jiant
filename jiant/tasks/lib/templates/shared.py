@@ -29,10 +29,10 @@ class UnpaddedInputs:
 
 
 @dataclass
-class UnpaddedAMRElementInputs:
-    unpadded_element_sub_tokens: List[str]
-    unpadded_element_end_indices: List[int]
+class UnpaddedAMRInputs:
+    unpadded_concepts: List[List[str]]
     unpadded_relation_ids: List[Tuple[int, int]]
+    unpadded_relation_labels: List[List[str]]
 
 
 @dataclass
@@ -42,13 +42,22 @@ class InputSet:
     segment_ids: List
 
 
+@dataclass
+class AMRInputSet:
+    concept_sub_token_ids: List[List[int]]
+    concept_sub_token_mask: List[List[int]]
+    relation_ids: List[Tuple[int, int]]
+    relation_label_sub_token_ids: List[List[int]]
+    relation_label_sub_token_mask: List[List[int]]
+
+
 def single_sentence_featurize(
-    guid: str,
-    input_tokens: List[str],
-    label_id: int,
-    tokenizer,
-    feat_spec: FeaturizationSpec,
-    data_row_class,
+        guid: str,
+        input_tokens: List[str],
+        label_id: int,
+        tokenizer,
+        feat_spec: FeaturizationSpec,
+        data_row_class,
 ):
     unpadded_inputs = construct_single_input_tokens_and_segment_ids(
         input_tokens=input_tokens, tokenizer=tokenizer, feat_spec=feat_spec,
@@ -65,13 +74,13 @@ def single_sentence_featurize(
 
 
 def double_sentence_featurize(
-    guid: str,
-    input_tokens_a: List[str],
-    input_tokens_b: List[str],
-    label_id: int,
-    tokenizer,
-    feat_spec: FeaturizationSpec,
-    data_row_class,
+        guid: str,
+        input_tokens_a: List[str],
+        input_tokens_b: List[str],
+        label_id: int,
+        tokenizer,
+        feat_spec: FeaturizationSpec,
+        data_row_class,
 ):
     """Featurize an example for a two-input/two-sentence task, and return the example as a DataRow.
 
@@ -107,40 +116,34 @@ def double_sentence_featurize(
 
 
 def double_sentence_with_amr_featurize(
-    guid: str,
-    input_tokens_a: List[str],
-    input_amr_concept_sub_tokens_a: List[str],
-    input_amr_concept_end_indices_a: List[int],
-    input_amr_relation_ids_a: List[Tuple[int, int]],
-    input_amr_relation_label_sub_tokens_a: List[str],
-    input_amr_relation_label_end_indices_a: List[int],
-    input_tokens_b: List[str],
-    input_amr_concept_sub_tokens_b: List[str],
-    input_amr_concept_end_indices_b: List[int],
-    input_amr_relation_ids_b: List[Tuple[int, int]],
-    input_amr_relation_label_sub_tokens_b: List[str],
-    input_amr_relation_label_end_indices_b: List[int],
-    label_id: int,
-    tokenizer,
-    feat_spec: FeaturizationSpec,
-    data_row_class,
+        guid: str,
+        input_tokens_a: List[str],
+        input_amr_concepts_a: List[List[str]],
+        input_amr_relation_ids_a: List[Tuple[int, int]],
+        input_amr_relation_labels_a: List[List[str]],
+        input_tokens_b: List[str],
+        input_amr_concepts_b: List[List[str]],
+        input_amr_relation_ids_b: List[Tuple[int, int]],
+        input_amr_relation_labels_b: List[List[str]],
+        label_id: int,
+        tokenizer,
+        feat_spec: FeaturizationSpec,
+        data_row_class,
 ):
     """Featurize an example for a two-input/two-sentence with AMR task, and return the example as a DataRow.
 
     Args:
-        guid (str): human-readable identifier for interpretability and debugging.
+        guid (str): human-readable identifier for interoperability and debugging.
         input_tokens_a (List[str]): sequence of tokens in segment a.
-        input_amr_concept_sub_tokens_a (List[str]): sequence of sub tokens of concepts in AMR of segment a.
-        input_amr_concept_end_indices_a (List[int]): sequence of end indices in sub tokens for concepts in AMR of segment a.
-        input_amr_relation_ids_a (List[(int, int)]): sequcence of (source, target) based on concept indices for relations in AMR of segment a
-        input_amr_relation_label_sub_tokens_a (List[str]): sequence of sub tokens of relation labels in AMR of segment a.
-        input_amr_relation_label_end_indices_a (List[int]): sequence of end indices in sub tokens for relation labels in AMR of segment a.
+        input_amr_concepts_a (List[List[str]]): sequence of sub tokens of concepts in AMR a.
+        input_amr_relation_ids_a (List[(int, int)]): sequence of (source, target)
+            based on concept indices for relations in AMR a.
+        input_amr_relation_labels_a (List[List[str]]): sequence of sub tokens of relation labels in AMR a.
         input_tokens_b (List[str]): sequence of tokens in segment b.
-        input_amr_concept_sub_tokens_b (List[str]): sequence of sub tokens of concepts in AMR of segment b.
-        input_amr_concept_end_indices_b (List[int]): sequence of end indices in sub tokens for concepts in AMR of segment b.
-        input_amr_relation_ids_b (List[(int, int)]): sequcence of (source, target) based on concept indices for relations in AMR of segment b
-        input_amr_relation_label_sub_tokens_b (List[str]): sequence of sub tokens of relation labels in AMR of segment b.
-        input_amr_relation_label_end_indices_b (List[int]): sequence of end indices in sub tokens for relation labels in AMR of segment b.
+        input_amr_concepts_b (List[List[str]]): sequence of sub tokens of concepts in AMR b.
+        input_amr_relation_ids_b (List[(int, int)]): sequence of (source, target)
+            based on concept indices for relations in AMR b.
+        input_amr_relation_labels_b (List[List[str]]): sequence of sub tokens of relation labels in AMR b.
         label_id (int): int representing the label for the task.
         tokenizer:
         feat_spec (FeaturizationSpec): Tokenization-related metadata.
@@ -156,30 +159,25 @@ def double_sentence_with_amr_featurize(
         tokenizer=tokenizer,
         feat_spec=feat_spec,
     )
-    
-    unpadded_input_concepts = construct_double_input_amr_elements(
-        input_element_sub_tokens_a=input_amr_concept_sub_tokens_a,
-        input_element_end_indices_a=input_amr_concept_end_indices_a,
-        input_element_sub_tokens_b=input_amr_concept_sub_tokens_b,
-        input_element_end_indices_b=input_amr_concept_end_indices_b,
+
+    unpadded_amr_inputs = construct_double_input_amr_concepts_and_relations(
+        input_amr_concepts_a=input_amr_concepts_a,
+        input_amr_relation_ids_a=input_amr_relation_ids_a,
+        input_amr_relation_labels_a=input_amr_relation_labels_a,
+        input_amr_concepts_b=input_amr_concepts_b,
+        input_amr_relation_ids_b=input_amr_relation_ids_b,
+        input_amr_relation_labels_b=input_amr_relation_labels_b,
         tokenizer=tokenizer,
         feat_spec=feat_spec,
-    )
-    unpadded_input_relations = construct_double_input_amr_elements(
-        input_element_sub_tokens_a=input_amr_relation_label_sub_tokens_a,
-        input_element_end_indices_a=input_amr_relation_label_end_indices_a,
-        input_element_sub_tokens_b=input_amr_relation_label_sub_tokens_b,
-        input_element_end_indices_b=input_amr_relation_label_end_indices_b,
-        tokenizer=tokenizer,
-        feat_spec=feat_spec,
-        input_relation_ids_a=input_amr_relation_ids_a,
-        input_relation_ids_b=input_amr_relation_ids_b,
     )
 
-    return create_generic_data_row_from_tokens_and_segments(
+    return create_generic_data_row_with_amr(
         guid=guid,
         unpadded_tokens=unpadded_inputs.unpadded_tokens,
         unpadded_segment_ids=unpadded_inputs.unpadded_segment_ids,
+        unpadded_concepts=unpadded_amr_inputs.unpadded_concepts,
+        unpadded_relation_ids=unpadded_amr_inputs.unpadded_relation_ids,
+        unpadded_relation_labels=unpadded_amr_inputs.unpadded_relation_labels,
         label_id=label_id,
         tokenizer=tokenizer,
         feat_spec=feat_spec,
@@ -188,7 +186,7 @@ def double_sentence_with_amr_featurize(
 
 
 def construct_single_input_tokens_and_segment_ids(
-    input_tokens: List[str], tokenizer, feat_spec: FeaturizationSpec
+        input_tokens: List[str], tokenizer, feat_spec: FeaturizationSpec
 ):
     special_tokens_count = 2  # CLS, SEP
 
@@ -199,8 +197,8 @@ def construct_single_input_tokens_and_segment_ids(
     return add_cls_token(
         unpadded_tokens=input_tokens + [tokenizer.sep_token],
         unpadded_segment_ids=(
-            [feat_spec.sequence_a_segment_id]
-            + [feat_spec.sequence_a_segment_id] * (len(input_tokens))
+                [feat_spec.sequence_a_segment_id]
+                + [feat_spec.sequence_a_segment_id] * (len(input_tokens))
         ),
         tokenizer=tokenizer,
         feat_spec=feat_spec,
@@ -208,7 +206,7 @@ def construct_single_input_tokens_and_segment_ids(
 
 
 def construct_double_input_tokens_and_segment_ids(
-    input_tokens_a: List[str], input_tokens_b: List[str], tokenizer, feat_spec: FeaturizationSpec
+        input_tokens_a: List[str], input_tokens_b: List[str], tokenizer, feat_spec: FeaturizationSpec
 ):
     """Create token and segment id sequences, apply truncation, add separator and class tokens.
 
@@ -237,18 +235,18 @@ def construct_double_input_tokens_and_segment_ids(
     )
 
     unpadded_tokens = (
-        input_tokens_a
-        + [tokenizer.sep_token]
-        + maybe_extra_sep
-        + input_tokens_b
-        + [tokenizer.sep_token]
+            input_tokens_a
+            + [tokenizer.sep_token]
+            + maybe_extra_sep
+            + input_tokens_b
+            + [tokenizer.sep_token]
     )
     unpadded_segment_ids = (
-        [feat_spec.sequence_a_segment_id] * len(input_tokens_a)
-        + [feat_spec.sequence_a_segment_id]
-        + maybe_extra_sep_segment_id
-        + [feat_spec.sequence_b_segment_id] * len(input_tokens_b)
-        + [feat_spec.sequence_b_segment_id]
+            [feat_spec.sequence_a_segment_id] * len(input_tokens_a)
+            + [feat_spec.sequence_a_segment_id]
+            + maybe_extra_sep_segment_id
+            + [feat_spec.sequence_b_segment_id] * len(input_tokens_b)
+            + [feat_spec.sequence_b_segment_id]
     )
     return add_cls_token(
         unpadded_tokens=unpadded_tokens,
@@ -258,47 +256,47 @@ def construct_double_input_tokens_and_segment_ids(
     )
 
 
-def construct_double_input_amr_elements(
-    input_element_sub_tokens_a: List[str],
-    input_element_end_indices_a: List[int],
-    input_element_sub_tokens_b: List[str],
-    input_element_end_indices_b: List[int],
-    tokenizer, 
-    feat_spec: FeaturizationSpec,
-    input_relation_ids_a: List[Tuple[int, int]] = None,
-    input_relation_ids_b: List[Tuple[int, int]] = None,
+def construct_double_input_amr_concepts_and_relations(
+        input_amr_concepts_a: List[List[str]],
+        input_amr_relation_ids_a: List[Tuple[int, int]],
+        input_amr_relation_labels_a: List[List[str]],
+        input_amr_concepts_b: List[List[str]],
+        input_amr_relation_ids_b: List[Tuple[int, int]],
+        input_amr_relation_labels_b: List[List[str]],
+        tokenizer,
+        feat_spec: FeaturizationSpec,
 ):
-    """ Merge element sub tokens and end indices from 2 AMRs
-        If for concepts, apply truncation and fix relation ids meanwhile.
+    """ Merge concepts, relation ids and labels from 2 AMRs, apply truncation.
 
     Args:
-        input_element_sub_tokens_a (List[str]): sequence of sub tokens of element in AMR a.
-        input_element_end_indices_a (List[int]): sequence of end indices in sub tokens for elements in AMR a.
-        input_element_sub_tokens_b (List[str]): sequence of sub tokens of element in AMR b.
-        input_element_end_indices_b (List[int]): sequence of end indices in sub tokens for elements in AMR b.
+        input_amr_concepts_a (List[List[str]]): sequence of sub tokens of concepts in AMR a.
+        input_amr_relation_ids_a (List[(int, int)]):
+            sequence of (source, target) based on concept indices for relations in AMR a.
+        input_amr_relation_labels_a (List[List[str]]): sequence of sub tokens of relation labels in AMR a.
+        input_amr_concepts_b (List[List[str]]): sequence of sub tokens of concepts in AMR b.
+        input_amr_relation_ids_b (List[(int, int)]):
+            sequence of (source, target) based on concept indices for relations in AMR b.
+        input_amr_relation_labels_b (List[List[str]]): sequence of sub tokens of relation labels in AMR b.
         tokenizer:
         feat_spec (FeaturizationSpec): Tokenization-related metadata.
-        input_relation_ids_a (List[(int, int)]):
-            sequcence of (source, target) based on concept indices for relations in AMR of segment a
-        input_relation_ids_b (List[(int, int)]):
-            sequcence of (source, target) based on concept indices for relations in AMR of segment b
 
     Returns:
-        UnpaddedAMRElemntInputs: unpadded merged AMR element inputs.
+        UnpaddedAMRInputs: unpadded merged AMR inputs.
 
     """
-    return UnpaddedAMRElementInputs(
-        unpadded_element_sub_tokens=[],
-        unpadded_element_end_indices=[],
+    # TODO: 1、sub token长度裁剪；2、concepts长度裁剪，相应修改relation ids和labels；3、合并，相应修改relation ids
+    return UnpaddedAMRInputs(
+        unpadded_concepts=[],
         unpadded_relation_ids=[],
+        unpadded_relation_labels=[],
     )
 
 
 def add_cls_token(
-    unpadded_tokens: List[str],
-    unpadded_segment_ids: List[int],
-    tokenizer,
-    feat_spec: FeaturizationSpec,
+        unpadded_tokens: List[str],
+        unpadded_segment_ids: List[int],
+        tokenizer,
+        feat_spec: FeaturizationSpec,
 ):
     """Add class token to unpadded inputs.
 
@@ -329,13 +327,13 @@ def add_cls_token(
 
 
 def create_generic_data_row_from_tokens_and_segments(
-    guid: str,
-    unpadded_tokens: List[str],
-    unpadded_segment_ids: List[int],
-    label_id: int,
-    tokenizer,
-    feat_spec: FeaturizationSpec,
-    data_row_class,
+        guid: str,
+        unpadded_tokens: List[str],
+        unpadded_segment_ids: List[int],
+        label_id: int,
+        tokenizer,
+        feat_spec: FeaturizationSpec,
+        data_row_class,
 ):
     """Creates an InputSet and wraps the InputSet into a DataRow class.
 
@@ -368,11 +366,70 @@ def create_generic_data_row_from_tokens_and_segments(
     )
 
 
+def create_generic_data_row_with_amr(
+        guid: str,
+        unpadded_tokens: List[str],
+        unpadded_segment_ids: List[int],
+        unpadded_concepts: List[List[str]],
+        unpadded_relation_ids: List[Tuple[int, int]],
+        unpadded_relation_labels: List[List[str]],
+        label_id: int,
+        tokenizer,
+        feat_spec: FeaturizationSpec,
+        data_row_class,
+):
+    """Creates an InputSet and wraps the InputSet into a DataRow class.
+
+    Args:
+        guid (str): human-readable identifier (for interpretability and debugging).
+        unpadded_tokens (List[str]): sequence of unpadded token strings.
+        unpadded_segment_ids (List[int]): sequence of unpadded segment ids.
+        unpadded_concepts (List[List[str]]): sequence of unpadded sub tokens of AMR concepts.
+        unpadded_relation_ids (List[(int, int)]): sequence of unpadded (source, target)
+            based on concept indices for AMR relations.
+        unpadded_relation_labels (List[List[str]]): sequence of unpadded sub tokens of AMR relation labels.
+        label_id (int): int representing the label for the task.
+        tokenizer:
+        feat_spec (FeaturizationSpec): Tokenization-related metadata.
+        data_row_class (DataRow): data row class to wrap and return the inputs.
+
+    Returns:
+        DataRow: data row class containing model inputs.
+
+    """
+    input_set = create_input_set_from_tokens_and_segments(
+        unpadded_tokens=unpadded_tokens,
+        unpadded_segment_ids=unpadded_segment_ids,
+        tokenizer=tokenizer,
+        feat_spec=feat_spec,
+    )
+    amr_input_set = create_amr_input_set(
+        unpadded_concepts=unpadded_concepts,
+        unpadded_relation_ids=unpadded_relation_ids,
+        unpadded_relation_labels=unpadded_relation_labels,
+        tokenizer=tokenizer,
+        feat_spec=feat_spec,
+    )
+    return data_row_class(
+        guid=guid,
+        input_ids=np.array(input_set.input_ids),
+        input_mask=np.array(input_set.input_mask),
+        segment_ids=np.array(input_set.segment_ids),
+        input_concept_ids=np.array(amr_input_set.concept_sub_token_ids),
+        input_concept_mask=np.array(amr_input_set.concept_sub_token_mask),
+        input_relation_ids=np.array(amr_input_set.relation_ids),
+        input_relation_label_ids=np.array(amr_input_set.relation_label_sub_token_ids),
+        input_relation_label_mask=np.array(amr_input_set.relation_label_sub_token_mask),
+        label_id=label_id,
+        tokens=unpadded_tokens,
+    )
+
+
 def create_input_set_from_tokens_and_segments(
-    unpadded_tokens: List[str],
-    unpadded_segment_ids: List[int],
-    tokenizer,
-    feat_spec: FeaturizationSpec,
+        unpadded_tokens: List[str],
+        unpadded_segment_ids: List[int],
+        tokenizer,
+        feat_spec: FeaturizationSpec,
 ):
     """Create padded inputs for model.
 
@@ -400,11 +457,54 @@ def create_input_set_from_tokens_and_segments(
     return input_set
 
 
+def create_amr_input_set(
+        unpadded_concepts: List[List[str]],
+        unpadded_relation_ids: List[Tuple[int, int]],
+        unpadded_relation_labels: List[List[str]],
+        tokenizer,
+        feat_spec: FeaturizationSpec,
+):
+    """Create padded inputs for model.
+
+    Converts tokens to ids, makes input set (input ids, input mask, and segment ids), adds padding.
+
+    Args:
+        unpadded_tokens (List[str]): unpadded list of token strings.
+        unpadded_segment_ids (List[int]): unpadded list of segment ids.
+        tokenizer:
+        feat_spec (FeaturizationSpec): Tokenization-related metadata.
+
+    Returns:
+        Padded amr input set.
+
+    """
+    # TODO：1、convert_tokens_to_ids；2、对concepts和relation labels进行二维padding，并生成mask
+    assert len(unpadded_relation_ids) == len(unpadded_relation_labels)
+    concept_sub_token_ids = [tokenizer.convert_tokens_to_ids(concept_sub_tokens)
+                             for concept_sub_tokens in unpadded_concepts]
+    relation_label_sub_token_ids = [tokenizer.convert_tokens_to_ids(relation_label_sub_tokens)
+                                    for relation_label_sub_tokens in unpadded_relation_labels]
+    # input_mask = [1] * len(input_ids)
+    # input_set = pad_features_with_feat_spec(
+    #     input_ids=input_ids,
+    #     input_mask=input_mask,
+    #     unpadded_segment_ids=unpadded_segment_ids,
+    #     feat_spec=feat_spec,
+    # )
+    return AMRInputSet(
+        concept_sub_token_ids=[],
+        concept_sub_token_mask=[],
+        relation_ids=[],
+        relation_label_sub_token_ids=[],
+        relation_label_sub_token_mask=[],
+    )
+
+
 def pad_features_with_feat_spec(
-    input_ids: List[int],
-    input_mask: List[int],
-    unpadded_segment_ids: List[int],
-    feat_spec: FeaturizationSpec,
+        input_ids: List[int],
+        input_mask: List[int],
+        unpadded_segment_ids: List[int],
+        feat_spec: FeaturizationSpec,
 ):
     """Apply padding to feature set according to settings from FeaturizationSpec.
 
@@ -432,7 +532,7 @@ def pad_features_with_feat_spec(
 
 
 def pad_single_with_feat_spec(
-    ls: List[int], feat_spec: FeaturizationSpec, pad_idx: int, check=True
+        ls: List[int], feat_spec: FeaturizationSpec, pad_idx: int, check=True
 ):
     """Apply padding to sequence according to settings from FeaturizationSpec.
 
