@@ -28,8 +28,10 @@ class Example(BaseExample):
     def tokenize(self, tokenizer):
         return TokenizedExample(
             guid=self.guid,
-            premise=tokenizer.tokenize(self.premise + "<AMR>" + self.premise_linearized_amr),
-            hypothesis=tokenizer.tokenize(self.hypothesis + "<AMR>" + self.hypothesis_linearized_amr),
+            # premise=tokenizer.tokenize(self.premise + "<AMR>" + self.premise_linearized_amr),
+            # hypothesis=tokenizer.tokenize(self.hypothesis + "<AMR>" + self.hypothesis_linearized_amr),
+            premise=tokenizer.tokenize(self.premise_linearized_amr),
+            hypothesis=tokenizer.tokenize(self.hypothesis_linearized_amr),
             label_id=MnliLinearizedAMRTask.LABEL_TO_ID[self.label],
         )
 
