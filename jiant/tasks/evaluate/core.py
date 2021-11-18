@@ -974,6 +974,7 @@ def get_evaluation_scheme_for_task(task) -> BaseEvaluationScheme:
             tasks_retrieval.FeverNliTask,
             tasks_retrieval.MnliTask,
             tasks_retrieval.MnliLinearizedAMRTask,
+            tasks_retrieval.MnliAMRTask,
             tasks_retrieval.PawsXTask,
             tasks_retrieval.QnliTask,
             tasks_retrieval.RaceTask,

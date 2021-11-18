@@ -313,7 +313,7 @@ def construct_double_input_amr_concepts_and_relations(
     for relation_id, relation_label in zip(input_amr_relation_ids_b, input_amr_relation_labels_b):
         source, target = relation_id
         if source < length_b and target < length_b:
-            truncate_input_amr_relation_ids_b.append((source + length_a, target + length_a))
+            truncate_input_amr_relation_ids_b.append([source + length_a, target + length_a])
             truncate_input_amr_relation_labels_b.append(relation_label)
     truncate_input_amr_relation_ids_a, truncate_input_amr_relation_ids_b = truncate_sequences(
         tokens_ls=[truncate_input_amr_relation_ids_a, truncate_input_amr_relation_ids_b],
@@ -454,6 +454,7 @@ def create_generic_data_row_with_amr(
         input_concept_ids=np.array(amr_input_set.concept_sub_token_ids),
         input_concept_mask=np.array(amr_input_set.concept_sub_token_mask),
         input_relation_ids=np.array(amr_input_set.relation_ids),
+        input_relation_id_mask=np.array(amr_input_set.relation_id_mask),
         input_relation_label_ids=np.array(amr_input_set.relation_label_sub_token_ids),
         input_relation_label_mask=np.array(amr_input_set.relation_label_sub_token_mask),
         label_id=label_id,
@@ -520,50 +521,47 @@ def create_amr_input_set(
                              for concept_sub_tokens in unpadded_concepts]
     relation_label_sub_token_ids = [tokenizer.convert_tokens_to_ids(relation_label_sub_tokens)
                                     for relation_label_sub_tokens in unpadded_relation_labels]
+    concept_sub_token_mask = [pad_to_max_seq_length(ls=[1] * len(sub_tokens),
+                                                    max_seq_length=MAX_SUB_TOKEN_LENGTH,
+                                                    pad_right=not feat_spec.pad_on_left)
+                              for sub_tokens in concept_sub_token_ids]
     concept_sub_token_ids = [pad_to_max_seq_length(ls=sub_tokens,
                                                    max_seq_length=MAX_SUB_TOKEN_LENGTH,
                                                    pad_idx=feat_spec.pad_token_id,
                                                    pad_right=not feat_spec.pad_on_left)
                              for sub_tokens in concept_sub_token_ids]
-    concept_sub_token_mask = [pad_to_max_seq_length(ls=[1] * len(sub_tokens),
-                                                    max_seq_length=MAX_SUB_TOKEN_LENGTH,
-                                                    pad_idx=feat_spec.pad_token_id,
-                                                    pad_right=not feat_spec.pad_on_left)
-                              for sub_tokens in concept_sub_token_ids]
-    concept_sub_token_ids = pad_to_max_seq_length(ls=concept_sub_token_ids,
-                                                  max_seq_length=feat_spec.max_seq_length,
-                                                  pad_idx=feat_spec.pad_token_id,
-                                                  pad_right=not feat_spec.pad_on_left)
     concept_sub_token_mask = pad_to_max_seq_length(ls=concept_sub_token_mask,
                                                    max_seq_length=feat_spec.max_seq_length,
-                                                   pad_idx=feat_spec.pad_token_id,
+                                                   pad_idx=[0] * MAX_SUB_TOKEN_LENGTH,
                                                    pad_right=not feat_spec.pad_on_left)
-    relation_ids = pad_to_max_seq_length(ls=unpadded_relation_ids,
-                                         max_seq_length=feat_spec.max_seq_length,
-                                         pad_idx=feat_spec.pad_token_id,
-                                         pad_right=not feat_spec.pad_on_left)
+    concept_sub_token_ids = pad_to_max_seq_length(ls=concept_sub_token_ids,
+                                                  max_seq_length=feat_spec.max_seq_length,
+                                                  pad_idx=[feat_spec.pad_token_id] * MAX_SUB_TOKEN_LENGTH,
+                                                  pad_right=not feat_spec.pad_on_left)
     relation_id_mask = pad_to_max_seq_length(ls=[1] * len(unpadded_relation_ids),
                                              max_seq_length=feat_spec.max_seq_length,
-                                             pad_idx=feat_spec.pad_token_id,
                                              pad_right=not feat_spec.pad_on_left)
+    relation_ids = pad_to_max_seq_length(ls=unpadded_relation_ids,
+                                         max_seq_length=feat_spec.max_seq_length,
+                                         pad_idx=[-1, -1],
+                                         pad_right=not feat_spec.pad_on_left)
+    relation_label_sub_token_mask = [pad_to_max_seq_length(ls=[1] * len(sub_tokens),
+                                                           max_seq_length=MAX_SUB_TOKEN_LENGTH,
+                                                           pad_right=not feat_spec.pad_on_left)
+                                     for sub_tokens in relation_label_sub_token_ids]
     relation_label_sub_token_ids = [pad_to_max_seq_length(ls=sub_tokens,
                                                           max_seq_length=MAX_SUB_TOKEN_LENGTH,
                                                           pad_idx=feat_spec.pad_token_id,
                                                           pad_right=not feat_spec.pad_on_left)
                                     for sub_tokens in relation_label_sub_token_ids]
-    relation_label_sub_token_mask = [pad_to_max_seq_length(ls=[1] * len(sub_tokens),
-                                                           max_seq_length=MAX_SUB_TOKEN_LENGTH,
-                                                           pad_idx=feat_spec.pad_token_id,
-                                                           pad_right=not feat_spec.pad_on_left)
-                                     for sub_tokens in relation_label_sub_token_ids]
-    relation_label_sub_token_ids = pad_to_max_seq_length(ls=relation_label_sub_token_ids,
-                                                         max_seq_length=feat_spec.max_seq_length,
-                                                         pad_idx=feat_spec.pad_token_id,
-                                                         pad_right=not feat_spec.pad_on_left)
     relation_label_sub_token_mask = pad_to_max_seq_length(ls=relation_label_sub_token_mask,
                                                           max_seq_length=feat_spec.max_seq_length,
-                                                          pad_idx=feat_spec.pad_token_id,
+                                                          pad_idx=[0] * MAX_SUB_TOKEN_LENGTH,
                                                           pad_right=not feat_spec.pad_on_left)
+    relation_label_sub_token_ids = pad_to_max_seq_length(ls=relation_label_sub_token_ids,
+                                                         max_seq_length=feat_spec.max_seq_length,
+                                                         pad_idx=[feat_spec.pad_token_id] * MAX_SUB_TOKEN_LENGTH,
+                                                         pad_right=not feat_spec.pad_on_left)
     return AMRInputSet(
         concept_sub_token_ids=concept_sub_token_ids,
         concept_sub_token_mask=concept_sub_token_mask,

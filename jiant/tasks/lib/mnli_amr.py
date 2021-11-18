@@ -86,6 +86,7 @@ class DataRow(BaseDataRow):
     input_concept_ids: np.ndarray
     input_concept_mask: np.ndarray
     input_relation_ids: np.ndarray
+    input_relation_id_mask: np.ndarray
     input_relation_label_ids: np.ndarray
     input_relation_label_mask: np.ndarray
     label_id: int
@@ -100,6 +101,7 @@ class Batch(BatchMixin):
     input_concept_ids: torch.LongTensor
     input_concept_mask: torch.LongTensor
     input_relation_ids: torch.LongTensor
+    input_relation_id_mask: torch.LongTensor
     input_relation_label_ids: torch.LongTensor
     input_relation_label_mask: torch.LongTensor
     label_id: torch.LongTensor
