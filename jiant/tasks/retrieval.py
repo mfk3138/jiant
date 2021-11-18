@@ -33,6 +33,7 @@ from jiant.tasks.lib.mlqa import MlqaTask
 from jiant.tasks.lib.mnli import MnliTask
 from jiant.tasks.lib.mnli_mismatched import MnliMismatchedTask
 from jiant.tasks.lib.mnli_linearized_amr import MnliLinearizedAMRTask
+from jiant.tasks.lib.mnli_amr import MnliAMRTask
 from jiant.tasks.lib.mrpc import MrpcTask
 from jiant.tasks.lib.mrqa_natural_questions import MrqaNaturalQuestionsTask
 from jiant.tasks.lib.multirc import MultiRCTask
@@ -127,6 +128,7 @@ TASK_DICT = {
     "mnli": MnliTask,
     "mnli_mismatched": MnliMismatchedTask,
     "mnli_linearized_amr": MnliLinearizedAMRTask,
+    "mnli_amr": MnliAMRTask,
     "multirc": MultiRCTask,
     "mutual": MutualTask,
     "mutual_plus": MutualPlusTask,
