@@ -90,6 +90,27 @@ class ClassificationModel(Taskmodel):
             return LogitsOutput(logits=logits, other=encoder_output.other)
 
 
+@JiantTaskModelFactory.register(TaskTypes.CLASSIFICATION_AMR)
+class ClassificationModel(Taskmodel):
+    def __init__(self, task, encoder, head: heads.ClassificationHead, **kwargs):
+
+        super().__init__(task=task, encoder=encoder, head=head)
+
+    def forward(self, batch, tokenizer, compute_loss: bool = False):
+        print(batch)
+        raise Exception("test")
+        encoder_output = self.encoder.encode(
+            input_ids=batch.input_ids, segment_ids=batch.segment_ids, input_mask=batch.input_mask,
+        )
+        logits = self.head(pooled=encoder_output.pooled)
+        if compute_loss:
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.head.num_labels), batch.label_id.view(-1),)
+            return LogitsAndLossOutput(logits=logits, loss=loss, other=encoder_output.other)
+        else:
+            return LogitsOutput(logits=logits, other=encoder_output.other)
+
+
 @JiantTaskModelFactory.register(TaskTypes.REGRESSION)
 class RegressionModel(Taskmodel):
     def __init__(self, task, encoder, head: heads.RegressionHead, **kwargs):

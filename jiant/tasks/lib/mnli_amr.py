@@ -112,7 +112,7 @@ class MnliAMRTask(GlueMixin, Task):
     DataRow = DataRow
     Batch = Batch
 
-    TASK_TYPE = TaskTypes.CLASSIFICATION
+    TASK_TYPE = TaskTypes.CLASSIFICATION_AMR
     LABELS = ["contradiction", "entailment", "neutral"]
     LABEL_TO_ID, ID_TO_LABEL = labels_to_bimap(LABELS)
 

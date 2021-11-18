@@ -79,7 +79,7 @@ class BaseHead(nn.Module, metaclass=abc.ABCMeta):
         super().__init__()
 
 
-@JiantHeadFactory.register([TaskTypes.CLASSIFICATION])
+@JiantHeadFactory.register([TaskTypes.CLASSIFICATION, TaskTypes.CLASSIFICATION_AMR])
 class ClassificationHead(BaseHead):
     def __init__(self, task, hidden_size, hidden_dropout_prob, **kwargs):
         """From RobertaClassificationHead"""
