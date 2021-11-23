@@ -375,7 +375,7 @@ class RelationalMultiheadAttention(MultiheadAttention):
         self.add_relation = add_relation
         self.rdim = rdim if rdim is not None else embed_dim
         if self.add_relation:
-            self.r_proj_weight = Parameter(torch.Tensor(num_heads, self.vdim))
+            self.r_proj_weight = Parameter(torch.Tensor(num_heads, self.rdim))
             self.r_proj_bias = Parameter(torch.empty(num_heads))
         self._reset_parameters()
 

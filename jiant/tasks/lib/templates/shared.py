@@ -8,6 +8,7 @@ from jiant.utils.python.datastructures import BiMap
 
 
 MAX_SUB_TOKEN_LENGTH = 5
+MAX_CONCEPT_LENGTH = 128
 
 
 class Span(NamedTuple):
@@ -298,7 +299,7 @@ def construct_double_input_amr_concepts_and_relations(
     input_amr_relation_labels_b = sum([truncate_sequences(tokens_ls=[label], max_length=MAX_SUB_TOKEN_LENGTH)
                             for label in input_amr_relation_labels_b], [])
     input_amr_concepts_a, input_amr_concepts_b = truncate_sequences(
-        tokens_ls=[input_amr_concepts_a, input_amr_concepts_b], max_length=feat_spec.max_seq_length)
+        tokens_ls=[input_amr_concepts_a, input_amr_concepts_b], max_length=MAX_CONCEPT_LENGTH)
     truncate_input_amr_relation_ids_a = []
     truncate_input_amr_relation_labels_a = []
     truncate_input_amr_relation_ids_b = []

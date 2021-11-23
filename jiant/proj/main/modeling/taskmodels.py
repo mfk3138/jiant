@@ -6,6 +6,7 @@ import torch.nn as nn
 from typing import Callable
 
 import jiant.proj.main.modeling.heads as heads
+from develop.model.graph_encoder import RelationalTransformerEncoderLayer, RelationalTransformerEncoder
 
 from jiant.proj.main.components.outputs import LogitsAndLossOutput
 from jiant.proj.main.components.outputs import LogitsOutput
@@ -91,17 +92,50 @@ class ClassificationModel(Taskmodel):
 
 
 @JiantTaskModelFactory.register(TaskTypes.CLASSIFICATION_AMR)
-class ClassificationModel(Taskmodel):
+class ClassificationAMRModel(Taskmodel):
     def __init__(self, task, encoder, head: heads.ClassificationHead, **kwargs):
 
         super().__init__(task=task, encoder=encoder, head=head)
+        encoder_layer = RelationalTransformerEncoderLayer(add_relation=True, d_model=768, nhead=8)
+        self.graph_encoder = RelationalTransformerEncoder(encoder_layer, num_layers=3)
 
     def forward(self, batch, tokenizer, compute_loss: bool = False):
-        print(batch)
-        raise Exception("test")
+        concept_sub_ids = batch.input_concept_ids
+        concept_sub_mask = batch.input_concept_mask
+        relation_ids = batch.input_relation_ids
+        relation_id_mask = batch.input_relation_id_mask
+        relation_label_sub_ids = batch.input_relation_label_ids
+        relation_label_sub_mask = batch.input_relation_label_mask
+        # word embedding and sub token pooling
+        bsz, length, sub_length = concept_sub_ids.size()
+        pad_embedding = self.encoder.embeddings(concept_sub_ids.new(1, 1).fill_(tokenizer.pad_token_id)).squeeze()
+        concept_embeddings = self.encoder.embeddings(concept_sub_ids.view(bsz, length * sub_length))\
+            .view(bsz, length, sub_length, -1)
+        concepts, _ = (concept_embeddings * concept_sub_mask.unsqueeze(-1).expand(concept_embeddings.size())).max(dim=2)
+        concept_mask, _ = concept_sub_mask.max(dim=2)
+        relation_label_embeddings = self.encoder.embeddings(relation_label_sub_ids.view(bsz, length * sub_length))\
+            .view(bsz, length, sub_length, -1)
+        relation_labels, _ = (relation_label_embeddings * relation_label_sub_mask.unsqueeze(-1)
+                              .expand(relation_label_embeddings.size())).max(dim=2)
+        relation_label_mask, _ = relation_label_sub_mask.max(dim=2)
+        relation_labels = relation_labels + pad_embedding.view(1, 1, -1).expand(relation_labels.size()) \
+                          * (1 - relation_label_mask).unsqueeze(-1).expand(relation_labels.size())
+        # build relation tensor
+        relations = pad_embedding.view(1, 1, 1, -1).repeat(bsz, length, length, 1)
+        batch_index = torch.arange(0, bsz).view(bsz, 1).type_as(relation_ids)
+        relations[batch_index, relation_ids[:, :, 0], relation_ids[:, :, 1]] = relation_labels
+        # graph encoder
+        concepts = concepts.permute(1, 0, 2)
+        relations = relations.permute(1, 2, 0, 3)
+        print(concepts.size(), relations.size(), concept_mask.size())
+        graph_features = self.graph_encoder(concepts, relations, src_key_padding_mask=(1 - concept_mask).bool())
+        print(graph_features.size())
+        # future fusion
         encoder_output = self.encoder.encode(
             input_ids=batch.input_ids, segment_ids=batch.segment_ids, input_mask=batch.input_mask,
         )
+        print(encoder_output.pooled.size())
+        raise Exception("test")
         logits = self.head(pooled=encoder_output.pooled)
         if compute_loss:
             loss_fct = nn.CrossEntropyLoss()

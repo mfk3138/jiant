@@ -13,7 +13,7 @@ import uuid
 
 EXP_DIR = "/data1/mafukun/export"
 DEV_DIR = "/home/mafukun/GLUE/jiant/develop/resource"
-addition = "all_vocab"
+addition = "amr_all_vocab"
 task_names = ["mnli_amr"]
 hf_pretrained_model_name = "roberta-base"
 run_name = f"mnli_amr_{addition}"
@@ -44,8 +44,8 @@ jiant_run_config = configurator.SimpleAPIMultiTaskConfigurator(
     task_cache_base_path=f"{EXP_DIR}/cache/{addition}",
     train_task_name_list=task_names,
     val_task_name_list=task_names,
-    train_batch_size=16,
-    eval_batch_size=16,
+    train_batch_size=8,
+    eval_batch_size=8,
     epochs=10,
     num_gpus=1,
     # warmup_steps_proportion=0.1,
