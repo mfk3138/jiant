@@ -21,13 +21,13 @@ run_id = uuid.uuid4().hex
 
 # Prepare for task: download data, export model, tokenize and cache
 # downloader.download_data(task_names, f"{EXP_DIR}/tasks")
-#
-# export_model.export_model(
-#     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
-#     output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
-#     additional_token_path=f"{DEV_DIR}/additions.txt"
-# )
-#
+
+export_model.export_model(
+    hf_pretrained_model_name_or_path=hf_pretrained_model_name,
+    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
+    additional_token_path=f"{DEV_DIR}/additions.txt"
+)
+
 for task_name in task_names:
     tokenize_and_cache.main(tokenize_and_cache.RunConfiguration(
         task_config_path=f"{EXP_DIR}/tasks/configs/{task_name}_config.json",
@@ -44,8 +44,8 @@ jiant_run_config = configurator.SimpleAPIMultiTaskConfigurator(
     task_cache_base_path=f"{EXP_DIR}/cache/{addition}",
     train_task_name_list=task_names,
     val_task_name_list=task_names,
-    train_batch_size=8,
-    eval_batch_size=8,
+    train_batch_size=16,
+    eval_batch_size=16,
     epochs=10,
     num_gpus=1,
     # warmup_steps_proportion=0.1,

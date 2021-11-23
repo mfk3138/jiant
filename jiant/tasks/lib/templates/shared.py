@@ -9,6 +9,7 @@ from jiant.utils.python.datastructures import BiMap
 
 MAX_SUB_TOKEN_LENGTH = 5
 MAX_CONCEPT_LENGTH = 128
+MAX_RELATION_LENGTH = 512
 
 
 class Span(NamedTuple):
@@ -318,10 +319,10 @@ def construct_double_input_amr_concepts_and_relations(
             truncate_input_amr_relation_labels_b.append(relation_label)
     truncate_input_amr_relation_ids_a, truncate_input_amr_relation_ids_b = truncate_sequences(
         tokens_ls=[truncate_input_amr_relation_ids_a, truncate_input_amr_relation_ids_b],
-        max_length=feat_spec.max_seq_length)
+        max_length=MAX_RELATION_LENGTH)
     truncate_input_amr_relation_labels_a, truncate_input_amr_relation_labels_b = truncate_sequences(
         tokens_ls=[truncate_input_amr_relation_labels_a, truncate_input_amr_relation_labels_b],
-        max_length=feat_spec.max_seq_length)
+        max_length=MAX_RELATION_LENGTH)
     return UnpaddedAMRInputs(
         unpadded_concepts=input_amr_concepts_a + input_amr_concepts_b,
         unpadded_relation_ids=truncate_input_amr_relation_ids_a + truncate_input_amr_relation_ids_b,
