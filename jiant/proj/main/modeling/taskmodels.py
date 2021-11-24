@@ -97,7 +97,7 @@ class ClassificationAMRModel(Taskmodel):
 
         super().__init__(task=task, encoder=encoder, head=head)
         encoder_layer = RelationalTransformerEncoderLayer(add_relation=True, d_model=768, nhead=8)
-        self.graph_encoder = RelationalTransformerEncoder(encoder_layer, num_layers=3)
+        self.graph_encoder = RelationalTransformerEncoder(encoder_layer, num_layers=6)
 
     def forward(self, batch, tokenizer, compute_loss: bool = False):
         concept_sub_ids = batch.input_concept_ids
@@ -121,22 +121,21 @@ class ClassificationAMRModel(Taskmodel):
         relation_labels = relation_labels + pad_embedding.view(1, 1, -1).expand(relation_labels.size()) \
                           * (1 - relation_label_mask).unsqueeze(-1).expand(relation_labels.size())
         # build relation tensor
-        relations = pad_embedding.view(1, 1, 1, -1).repeat(bsz, length, length, 1)
         batch_index = torch.arange(0, bsz).view(bsz, 1).type_as(relation_ids)
-        relations[batch_index, relation_ids[:, :, 0], relation_ids[:, :, 1]] = relation_labels
         # graph encoder
         concepts = concepts.permute(1, 0, 2)
-        relations = relations.permute(1, 2, 0, 3)
-        print(concepts.size(), relations.size(), concept_mask.size())
-        graph_features = self.graph_encoder(concepts, relations, src_key_padding_mask=(1 - concept_mask).bool())
-        print(graph_features.size())
+        relation_dict = {"relation_labels": relation_labels,
+                         "relation_ids": relation_ids,
+                         "pad_embedding": pad_embedding,
+                         "batch_index": batch_index}
+        graph_features = self.graph_encoder(concepts, relation_dict, src_key_padding_mask=(1 - concept_mask).bool())
+        graph_features_pooled, _ = graph_features.max(0)
         # future fusion
         encoder_output = self.encoder.encode(
             input_ids=batch.input_ids, segment_ids=batch.segment_ids, input_mask=batch.input_mask,
         )
-        print(encoder_output.pooled.size())
-        raise Exception("test")
-        logits = self.head(pooled=encoder_output.pooled)
+        fusion_features = torch.cat([graph_features_pooled, encoder_output.pooled], 1)
+        logits = self.head(pooled=fusion_features)
         if compute_loss:
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.head.num_labels), batch.label_id.view(-1),)

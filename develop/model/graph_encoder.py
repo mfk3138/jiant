@@ -15,7 +15,6 @@ def relational_multi_head_attention_forward(
     num_heads: int,
     in_proj_weight: Tensor,
     in_proj_bias: Tensor,
-    r_proj_bias: Tensor,
     bias_k: Optional[Tensor],
     bias_v: Optional[Tensor],
     add_zero_attn: bool,
@@ -30,7 +29,6 @@ def relational_multi_head_attention_forward(
     q_proj_weight: Optional[Tensor] = None,
     k_proj_weight: Optional[Tensor] = None,
     v_proj_weight: Optional[Tensor] = None,
-    r_proj_weight: Optional[Tensor] = None,
     static_k: Optional[Tensor] = None,
     static_v: Optional[Tensor] = None,
 ) -> Tuple[Tensor, Optional[Tensor]]:
@@ -258,21 +256,21 @@ def relational_multi_head_attention_forward(
         assert bias_v is None
 
     r = None
-    if relation is not None:
-        assert r_proj_weight is not None
-        assert r_proj_bias is not None
-        assert relation.size(0) == tgt_len
-        assert relation.size(1) == key.size(0)
-        assert relation.size(2) == bsz
-        r = linear(relation, r_proj_weight, r_proj_bias)
+    # if relation is not None:
+    #     assert r_proj_weight is not None
+    #     assert r_proj_bias is not None
+    #     assert relation.size(0) == tgt_len
+    #     assert relation.size(1) == key.size(0)
+    #     assert relation.size(2) == bsz
+    #     r = linear(relation, r_proj_weight, r_proj_bias)
 
     q = q.contiguous().view(tgt_len, bsz * num_heads, head_dim).transpose(0, 1)
     if k is not None:
         k = k.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
     if v is not None:
         v = v.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
-    if r is not None:
-        r = r.contiguous().view(tgt_len, -1, bsz * num_heads, 1).squeeze(3).permute(2, 0, 1)
+    if relation is not None:
+        r = relation.contiguous().view(tgt_len, -1, bsz * num_heads, 1).squeeze(3).permute(2, 0, 1)
 
     if static_k is not None:
         assert static_k.size(0) == bsz * num_heads
@@ -406,7 +404,7 @@ class RelationalMultiheadAttention(MultiheadAttention):
 
         super(MultiheadAttention, self).__setstate__(state)
 
-    def forward(self, query: Tensor, key: Tensor, value: Tensor, relation: Tensor = None, key_padding_mask: Optional[Tensor] = None,
+    def forward(self, query: Tensor, key: Tensor, value: Tensor, relation_dict = None, key_padding_mask: Optional[Tensor] = None,
                 need_weights: bool = True, attn_mask: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
         r"""
     Args:
@@ -448,32 +446,43 @@ class RelationalMultiheadAttention(MultiheadAttention):
         - attn_output_weights: :math:`(N, L, S)` where N is the batch size,
           L is the target sequence length, S is the source sequence length.
         """
-        if relation is not None:
+        if relation_dict is not None:
+            relation_labels = relation_dict["relation_labels"]
+            relation_ids = relation_dict["relation_ids"]
+            batch_index = relation_dict["batch_index"]
+            pad_embedding = relation_dict["pad_embedding"]
+            relation_labels = linear(relation_labels, self.r_proj_weight, self.r_proj_bias)
+            pad_embedding = linear(pad_embedding.unsqueeze(0), self.r_proj_weight, self.r_proj_bias).squeeze()
+            src_length, bsz, _ = query.size()
+            tgt_length, _, _ = key.size()
+            relation = pad_embedding.view(1, 1, 1, -1).repeat(bsz, src_length, tgt_length, 1)
+            relation[batch_index, relation_ids[:, :, 0], relation_ids[:, :, 1]] = relation_labels
+            relation = relation.permute(1, 2, 0, 3)
             if not self._qkv_same_embed_dim:
                 return relational_multi_head_attention_forward(
                     query, key, value, relation, self.embed_dim, self.num_heads,
-                    self.in_proj_weight, self.in_proj_bias, self.r_proj_bias,
+                    self.in_proj_weight, self.in_proj_bias,
                     self.bias_k, self.bias_v, self.add_zero_attn,
                     self.dropout, self.out_proj.weight, self.out_proj.bias,
                     training=self.training,
                     key_padding_mask=key_padding_mask, need_weights=need_weights,
                     attn_mask=attn_mask, use_separate_proj_weight=True,
                     q_proj_weight=self.q_proj_weight, k_proj_weight=self.k_proj_weight,
-                    v_proj_weight=self.v_proj_weight, r_proj_weight=self.r_proj_weight)
+                    v_proj_weight=self.v_proj_weight)
             else:
                 return relational_multi_head_attention_forward(
                     query, key, value, relation, self.embed_dim, self.num_heads,
-                    self.in_proj_weight, self.in_proj_bias, self.r_proj_bias,
+                    self.in_proj_weight, self.in_proj_bias,
                     self.bias_k, self.bias_v, self.add_zero_attn,
                     self.dropout, self.out_proj.weight, self.out_proj.bias,
                     training=self.training,
                     key_padding_mask=key_padding_mask, need_weights=need_weights,
-                    attn_mask=attn_mask, r_proj_weight=self.r_proj_weight)
+                    attn_mask=attn_mask)
         else:
             if not self._qkv_same_embed_dim:
                 return relational_multi_head_attention_forward(
                     query, key, value, None, self.embed_dim, self.num_heads,
-                    self.in_proj_weight, self.in_proj_bias, None,
+                    self.in_proj_weight, self.in_proj_bias,
                     self.bias_k, self.bias_v, self.add_zero_attn,
                     self.dropout, self.out_proj.weight, self.out_proj.bias,
                     training=self.training,
@@ -484,7 +493,7 @@ class RelationalMultiheadAttention(MultiheadAttention):
             else:
                 return relational_multi_head_attention_forward(
                     query, key, value, None, self.embed_dim, self.num_heads,
-                    self.in_proj_weight, self.in_proj_bias, None,
+                    self.in_proj_weight, self.in_proj_bias,
                     self.bias_k, self.bias_v, self.add_zero_attn,
                     self.dropout, self.out_proj.weight, self.out_proj.bias,
                     training=self.training,
@@ -519,7 +528,7 @@ class RelationalTransformerEncoderLayer(TransformerEncoderLayer):
                                                                       dropout=dropout, activation=activation)
         self.self_attn = RelationalMultiheadAttention(d_model, nhead, add_relation=add_relation, dropout=dropout)
 
-    def forward(self, src: Tensor, relation: Tensor = None, src_mask: Optional[Tensor] = None,
+    def forward(self, src: Tensor, relation = None, src_mask: Optional[Tensor] = None,
                 src_key_padding_mask: Optional[Tensor] = None) -> Tensor:
         r"""Pass the input through the encoder layer.
 
@@ -531,7 +540,7 @@ class RelationalTransformerEncoderLayer(TransformerEncoderLayer):
         Shape:
             see the docs in Transformer class.
         """
-        src2 = self.self_attn(src, src, src, relation=relation, attn_mask=src_mask,
+        src2 = self.self_attn(src, src, src, relation_dict=relation, attn_mask=src_mask,
                               key_padding_mask=src_key_padding_mask)[0]
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -564,7 +573,7 @@ class RelationalTransformerEncoder(TransformerEncoder):
         self.num_layers = num_layers
         self.norm = norm
 
-    def forward(self, src: Tensor, relation: Tensor = None, mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None) -> Tensor:
+    def forward(self, src: Tensor, relation = None, mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None) -> Tensor:
         r"""Pass the input through the encoder layers in turn.
 
         Args:

@@ -85,6 +85,8 @@ class ClassificationHead(BaseHead):
         """From RobertaClassificationHead"""
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
+        if task.TASK_TYPE == TaskTypes.CLASSIFICATION_AMR:
+            self.dense = nn.Linear(2 * hidden_size, hidden_size)
         self.dropout = nn.Dropout(hidden_dropout_prob)
         self.out_proj = nn.Linear(hidden_size, len(task.LABELS))
         self.num_labels = len(task.LABELS)
