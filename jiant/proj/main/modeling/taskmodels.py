@@ -109,11 +109,11 @@ class ClassificationAMRModel(Taskmodel):
         # word embedding and sub token pooling
         bsz, length, sub_length = concept_sub_ids.size()
         pad_embedding = self.encoder.embeddings(concept_sub_ids.new(1, 1).fill_(tokenizer.pad_token_id)).squeeze()
-        concept_embeddings = self.encoder.embeddings(concept_sub_ids.view(bsz, length * sub_length))\
+        concept_embeddings = self.encoder.embeddings(concept_sub_ids.view(bsz * length, sub_length))\
             .view(bsz, length, sub_length, -1)
         concepts, _ = (concept_embeddings * concept_sub_mask.unsqueeze(-1).expand(concept_embeddings.size())).max(dim=2)
         concept_mask, _ = concept_sub_mask.max(dim=2)
-        relation_label_embeddings = self.encoder.embeddings(relation_label_sub_ids.view(bsz, length * sub_length))\
+        relation_label_embeddings = self.encoder.embeddings(relation_label_sub_ids.view(bsz * length, sub_length))\
             .view(bsz, length, sub_length, -1)
         relation_labels, _ = (relation_label_embeddings * relation_label_sub_mask.unsqueeze(-1)
                               .expand(relation_label_embeddings.size())).max(dim=2)

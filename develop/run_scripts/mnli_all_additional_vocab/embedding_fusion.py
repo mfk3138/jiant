@@ -22,11 +22,11 @@ run_id = uuid.uuid4().hex
 # Prepare for task: download data, export model, tokenize and cache
 # downloader.download_data(task_names, f"{EXP_DIR}/tasks")
 
-# export_model.export_model(
-#     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
-#     output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
-#     additional_token_path=f"{DEV_DIR}/additions.txt"
-# )
+export_model.export_model(
+    hf_pretrained_model_name_or_path=hf_pretrained_model_name,
+    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
+    additional_token_path=f"{DEV_DIR}/additions.txt"
+)
 #
 # for task_name in task_names:
 #     tokenize_and_cache.main(tokenize_and_cache.RunConfiguration(
@@ -66,6 +66,8 @@ run_args = main_runscript.RunConfiguration(
     do_val=True,
     do_save=True,
     force_overwrite=True,
+    # seed=3078617748,
+    # no_cuda=True,
 )
 main_runscript.run_loop(run_args)
 
