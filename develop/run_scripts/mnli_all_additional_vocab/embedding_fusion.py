@@ -16,17 +16,17 @@ DEV_DIR = "/home/mafukun/GLUE/jiant/develop/resource"
 addition = "amr_all_vocab"
 task_names = ["mnli_amr"]
 hf_pretrained_model_name = "roberta-base"
-run_name = f"mnli_amr_{addition}"
+run_name = f"mnli_amr_{addition}_test"
 run_id = uuid.uuid4().hex
 
 # Prepare for task: download data, export model, tokenize and cache
 # downloader.download_data(task_names, f"{EXP_DIR}/tasks")
 
-export_model.export_model(
-    hf_pretrained_model_name_or_path=hf_pretrained_model_name,
-    output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
-    additional_token_path=f"{DEV_DIR}/additions.txt"
-)
+# export_model.export_model(
+#     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
+#     output_base_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}",
+#     additional_token_path=f"{DEV_DIR}/additions.txt"
+# )
 #
 # for task_name in task_names:
 #     tokenize_and_cache.main(tokenize_and_cache.RunConfiguration(

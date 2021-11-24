@@ -31,6 +31,7 @@ def relational_multi_head_attention_forward(
     v_proj_weight: Optional[Tensor] = None,
     static_k: Optional[Tensor] = None,
     static_v: Optional[Tensor] = None,
+    relation_type: str = None,
 ) -> Tuple[Tensor, Optional[Tensor]]:
     r"""
     Args:
@@ -269,8 +270,6 @@ def relational_multi_head_attention_forward(
         k = k.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
     if v is not None:
         v = v.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
-    if relation is not None:
-        r = relation.contiguous().view(tgt_len, -1, bsz * num_heads, 1).squeeze(3).permute(2, 0, 1)
 
     if static_k is not None:
         assert static_k.size(0) == bsz * num_heads
@@ -283,6 +282,16 @@ def relational_multi_head_attention_forward(
         v = static_v
 
     src_len = k.size(1)
+
+    if relation is not None:
+        if relation_type is "qk+r":
+            r = relation.contiguous().view(tgt_len, -1, bsz * num_heads, 1).squeeze(3).permute(2, 0, 1)
+        elif relation_type is "q(k+r)":
+            r = relation.contiguous().view(tgt_len, src_len, bsz * num_heads, head_dim).permute(2, 0, 1)
+            r = r.view(bsz * num_heads, tgt_len * src_len, head_dim)
+            r = torch.bmm(r, q.unsqueeze(2).repeat(1, 1, src_len, 1)
+                          .view(bsz * num_heads, tgt_len * src_len, head_dim).transpose(1, 2))\
+                .view(bsz * num_heads, tgt_len, src_len)
 
     if key_padding_mask is not None:
         assert key_padding_mask.size(0) == bsz
@@ -366,15 +375,20 @@ class RelationalMultiheadAttention(MultiheadAttention):
     bias_v: Optional[torch.Tensor]
 
     def __init__(self, embed_dim, num_heads, dropout=0., bias=True, add_bias_kv=False, add_zero_attn=False, kdim=None,
-                 vdim=None, add_relation=False, rdim=None):
+                 vdim=None, add_relation=False, rdim=None, relation_type=None):
         super(RelationalMultiheadAttention, self).__init__(embed_dim=embed_dim, num_heads=num_heads,
                                                                  dropout=dropout, bias=bias, add_bias_kv=add_bias_kv,
                                                                  add_zero_attn=add_zero_attn, kdim=kdim, vdim=vdim)
         self.add_relation = add_relation
         self.rdim = rdim if rdim is not None else embed_dim
+        self.relation_type = relation_type if relation_type else "qk+r"
         if self.add_relation:
-            self.r_proj_weight = Parameter(torch.Tensor(num_heads, self.rdim))
-            self.r_proj_bias = Parameter(torch.empty(num_heads))
+            if relation_type == "qk+r":
+                self.r_proj_weight = Parameter(torch.Tensor(num_heads, self.rdim))
+                self.r_proj_bias = Parameter(torch.empty(num_heads))
+            elif relation_type == "q(k+r)":
+                self.r_proj_weight = Parameter(torch.Tensor(embed_dim, self.rdim))
+                self.r_proj_bias = Parameter(torch.empty(embed_dim))
         self._reset_parameters()
 
     def _reset_parameters(self):
@@ -453,9 +467,10 @@ class RelationalMultiheadAttention(MultiheadAttention):
             pad_embedding = relation_dict["pad_embedding"]
             relation_labels = linear(relation_labels, self.r_proj_weight, self.r_proj_bias)
             pad_embedding = linear(pad_embedding.unsqueeze(0), self.r_proj_weight, self.r_proj_bias).squeeze()
-            src_length, bsz, _ = query.size()
-            tgt_length, _, _ = key.size()
-            relation = pad_embedding.view(1, 1, 1, -1).repeat(bsz, src_length, tgt_length, 1)
+            tgt_length, bsz, _ = query.size()
+            src_length, _, _ = key.size()
+            # TODO: q(k+r)时, 先张成relation矩阵会爆显存
+            relation = pad_embedding.view(1, 1, 1, -1).repeat(bsz, tgt_length, src_length, 1)
             relation[batch_index, relation_ids[:, :, 0], relation_ids[:, :, 1]] = relation_labels
             relation = relation.permute(1, 2, 0, 3)
             if not self._qkv_same_embed_dim:
@@ -523,10 +538,12 @@ class RelationalTransformerEncoderLayer(TransformerEncoderLayer):
         >>> out = encoder_layer(src, rel)
     """
 
-    def __init__(self, d_model, nhead, add_relation=False, dim_feedforward=2048, dropout=0.1, activation="relu"):
+    def __init__(self, d_model, nhead, add_relation=False, dim_feedforward=2048,
+                 dropout=0.1, activation="relu", relation_type=None):
         super(RelationalTransformerEncoderLayer, self).__init__(d_model, nhead, dim_feedforward=dim_feedforward,
                                                                       dropout=dropout, activation=activation)
-        self.self_attn = RelationalMultiheadAttention(d_model, nhead, add_relation=add_relation, dropout=dropout)
+        self.self_attn = RelationalMultiheadAttention(d_model, nhead, add_relation=add_relation,
+                                                      dropout=dropout, relation_type=relation_type)
 
     def forward(self, src: Tensor, relation = None, src_mask: Optional[Tensor] = None,
                 src_key_padding_mask: Optional[Tensor] = None) -> Tensor:

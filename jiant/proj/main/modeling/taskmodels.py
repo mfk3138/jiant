@@ -96,8 +96,14 @@ class ClassificationAMRModel(Taskmodel):
     def __init__(self, task, encoder, head: heads.ClassificationHead, **kwargs):
 
         super().__init__(task=task, encoder=encoder, head=head)
-        encoder_layer = RelationalTransformerEncoderLayer(add_relation=True, d_model=768, nhead=8)
+        encoder_layer = RelationalTransformerEncoderLayer(add_relation=True, d_model=768, nhead=8,
+                                                          relation_type=task.RELATION_TYPE)
         self.graph_encoder = RelationalTransformerEncoder(encoder_layer, num_layers=6)
+        self.fusion_type = task.FUSION_TYPE
+        if self.fusion_type in [1, 2]:
+            from torch.nn import TransformerDecoder, TransformerDecoderLayer
+            decoder_layer = TransformerDecoderLayer(d_model=768, nhead=8)
+            self.cross_attention_mixer = TransformerDecoder(decoder_layer, num_layers=1)
 
     def forward(self, batch, tokenizer, compute_loss: bool = False):
         concept_sub_ids = batch.input_concept_ids
@@ -106,7 +112,7 @@ class ClassificationAMRModel(Taskmodel):
         relation_id_mask = batch.input_relation_id_mask
         relation_label_sub_ids = batch.input_relation_label_ids
         relation_label_sub_mask = batch.input_relation_label_mask
-        # word embedding and sub token pooling
+        # word embedding, sub token pooling and relation preparing
         bsz, length, sub_length = concept_sub_ids.size()
         pad_embedding = self.encoder.embeddings(concept_sub_ids.new(1, 1).fill_(tokenizer.pad_token_id)).squeeze()
         concept_embeddings = self.encoder.embeddings(concept_sub_ids.view(bsz * length, sub_length))\
@@ -120,7 +126,6 @@ class ClassificationAMRModel(Taskmodel):
         relation_label_mask, _ = relation_label_sub_mask.max(dim=2)
         relation_labels = relation_labels + pad_embedding.view(1, 1, -1).expand(relation_labels.size()) \
                           * (1 - relation_label_mask).unsqueeze(-1).expand(relation_labels.size())
-        # build relation tensor
         batch_index = torch.arange(0, bsz).view(bsz, 1).type_as(relation_ids)
         # graph encoder
         concepts = concepts.permute(1, 0, 2)
@@ -129,12 +134,28 @@ class ClassificationAMRModel(Taskmodel):
                          "pad_embedding": pad_embedding,
                          "batch_index": batch_index}
         graph_features = self.graph_encoder(concepts, relation_dict, src_key_padding_mask=(1 - concept_mask).bool())
-        graph_features_pooled, _ = graph_features.max(0)
-        # future fusion
+        # sentence encoder
         encoder_output = self.encoder.encode(
             input_ids=batch.input_ids, segment_ids=batch.segment_ids, input_mask=batch.input_mask,
         )
-        fusion_features = torch.cat([graph_features_pooled, encoder_output.pooled], 1)
+        # future fusion
+        if self.fusion_type == 0:
+            graph_features_pooled, _ = graph_features.max(0)
+            fusion_features = torch.cat([graph_features_pooled, encoder_output.pooled], 1)
+        elif self.fusion_type == 1:
+            fusion_features = self.cross_attention_mixer(encoder_output.unpooled.transpose(0, 1),
+                                                         graph_features,
+                                                         tgt_key_padding_mask=batch.input_mask.bool(),
+                                                         memory_key_padding_mask=(1 - concept_mask).bool())
+            fusion_features, _ = fusion_features.max(0)
+        elif self.fusion_type == 2:
+            fusion_features = self.cross_attention_mixer(graph_features,
+                                                         encoder_output.unpooled.transpose(0, 1),
+                                                         tgt_key_padding_mask=(1 - concept_mask).bool(),
+                                                         memory_key_padding_mask=batch.input_mask.bool())
+            fusion_features, _ = fusion_features.max(0)
+        else:
+            raise Exception("Unsupported fusion type!")
         logits = self.head(pooled=fusion_features)
         if compute_loss:
             loss_fct = nn.CrossEntropyLoss()
