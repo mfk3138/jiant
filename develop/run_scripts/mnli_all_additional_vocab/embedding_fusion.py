@@ -22,7 +22,7 @@ task_model_config = {
         "fusion_type": 0,  # 0: feature concat, 1: cross attention q_word, 2: cross attention q_concept
     }
 }
-run_name = "_".join([value for value in task_model_config["mnli_amr"].values()])
+run_name = "_".join([str(value) for value in task_model_config["mnli_amr"].values()])
 
 # Prepare for task: download data, export model, tokenize and cache
 # downloader.download_data(task_names, f"{EXP_DIR}/tasks")
