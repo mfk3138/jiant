@@ -84,7 +84,7 @@ class ClassificationHead(BaseHead):
     def __init__(self, task, hidden_size, hidden_dropout_prob, **kwargs):
         """From RobertaClassificationHead"""
         super().__init__()
-        if task.TASK_TYPE == TaskTypes.CLASSIFICATION_AMR and kwargs["mnli_amr"]["fusion_type"] == 0:
+        if task.TASK_TYPE == TaskTypes.CLASSIFICATION_AMR and kwargs["taskmodel_kwargs"]["fusion_type"] == 0:
             self.dense = nn.Linear(2 * hidden_size, hidden_size)
         else:
             self.dense = nn.Linear(hidden_size, hidden_size)
