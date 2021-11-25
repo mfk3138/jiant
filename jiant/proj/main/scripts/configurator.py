@@ -255,6 +255,7 @@ class SimpleAPIMultiTaskConfigurator(zconf.RunConfig):
     num_gpus = zconf.attr(type=int, default=None)
     train_examples_cap = zconf.attr(type=int, default=None)
     warmup_steps_proportion = zconf.attr(type=float, default=0.1)
+    task_model_config = zconf.attr(type=dict, default=None)
 
     @classmethod
     def parse_task_name_list(cls, task_name_list_arg):
@@ -422,7 +423,9 @@ class SimpleAPIMultiTaskConfigurator(zconf.RunConfig):
                 "task_to_taskmodel_map": {
                     task_name: task_name for task_name in full_task_name_list
                 },
-                "taskmodel_config_map": {task_name: None for task_name in full_task_name_list},
+                "taskmodel_config_map": {task_name: self.task_model_config.get(task_name)
+                                         if self.task_model_config else None
+                                         for task_name in full_task_name_list},
             },
             "task_run_config": {
                 "train_task_list": task_name_list_dict["train"],

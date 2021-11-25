@@ -16,8 +16,13 @@ DEV_DIR = "/home/mafukun/GLUE/jiant/develop/resource"
 addition = "amr_all_vocab"
 task_names = ["mnli_amr"]
 hf_pretrained_model_name = "roberta-base"
-run_name = f"mnli_amr_{addition}_test"
-run_id = uuid.uuid4().hex
+task_model_config = {
+    "mnli_amr": {
+        "relation_type": "qk+r",  # "qk+r", "q(k+r)"
+        "fusion_type": 0,  # 0: feature concat, 1: cross attention q_word, 2: cross attention q_concept
+    }
+}
+run_name = "_".join([value for value in task_model_config["mnli_amr"].values()])
 
 # Prepare for task: download data, export model, tokenize and cache
 # downloader.download_data(task_names, f"{EXP_DIR}/tasks")
@@ -46,17 +51,18 @@ jiant_run_config = configurator.SimpleAPIMultiTaskConfigurator(
     val_task_name_list=task_names,
     train_batch_size=16,
     eval_batch_size=16,
-    epochs=3,
+    epochs=10,
     num_gpus=1,
     # warmup_steps_proportion=0.1,
+    task_model_config=task_model_config
 ).create_config()
 os.makedirs(f"{EXP_DIR}/run_configs/{run_name}", exist_ok=True)
-py_io.write_json(jiant_run_config, f"{EXP_DIR}/run_configs/{run_name}/{run_id}_run_config.json")
+py_io.write_json(jiant_run_config, f"{EXP_DIR}/run_configs/{run_name}_run_config.json")
 display.show_json(jiant_run_config)
 
 run_args = main_runscript.RunConfiguration(
-    jiant_task_container_config_path=f"{EXP_DIR}/run_configs/{run_name}/{run_id}_run_config.json",
-    output_dir=f"{EXP_DIR}/runs/{run_name}/{run_id}",
+    jiant_task_container_config_path=f"{EXP_DIR}/run_configs/{run_name}_run_config.json",
+    output_dir=f"{EXP_DIR}/runs/{run_name}",
     hf_pretrained_model_name_or_path=hf_pretrained_model_name,
     model_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}/model/model.p",
     model_config_path=f"{EXP_DIR}/models/{hf_pretrained_model_name}_{addition}/model/config.json",

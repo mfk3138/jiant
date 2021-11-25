@@ -97,9 +97,9 @@ class ClassificationAMRModel(Taskmodel):
 
         super().__init__(task=task, encoder=encoder, head=head)
         encoder_layer = RelationalTransformerEncoderLayer(add_relation=True, d_model=768, nhead=8,
-                                                          relation_type=task.RELATION_TYPE)
+                                                          relation_type=kwargs["relation_type"])
         self.graph_encoder = RelationalTransformerEncoder(encoder_layer, num_layers=6)
-        self.fusion_type = task.FUSION_TYPE
+        self.fusion_type = kwargs["fusion_type"]
         if self.fusion_type in [1, 2]:
             from torch.nn import TransformerDecoder, TransformerDecoderLayer
             decoder_layer = TransformerDecoderLayer(d_model=768, nhead=8)

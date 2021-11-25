@@ -115,8 +115,6 @@ class MnliAMRTask(GlueMixin, Task):
     Batch = Batch
 
     TASK_TYPE = TaskTypes.CLASSIFICATION_AMR
-    RELATION_TYPE = "qk+r"  # "qk+r", "q(k+r)"
-    FUSION_TYPE = 1  # 0: feature concat, 1: cross attention q_word, 2: cross attention q_concept
     LABELS = ["contradiction", "entailment", "neutral"]
     LABEL_TO_ID, ID_TO_LABEL = labels_to_bimap(LABELS)
 
